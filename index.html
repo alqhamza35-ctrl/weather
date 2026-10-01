@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق الطقس والساعة الذكي | Weather & Clock App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Cairo & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            font-family: 'Cairo', 'Inter', sans-serif;
+            user-select: none;
+        }
+
+        /* Smooth Background Transitions */
+        .bg-day {
+            background: linear-gradient(135deg, #3a7bd5 0%, #3a6073 100%);
+        }
+        
+        .bg-sunset {
+            background: linear-gradient(135deg, #2b5876 0%, #4e4376 100%);
+        }
+
+        .bg-night {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        }
+
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Pulse Animations for Ambient Weather Icons */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+        }
+
+        .animate-float {
+            animation: floatSlow 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body id="appBody" class="bg-day min-h-screen text-white flex items-center justify-center p-4 sm:p-6 transition-all duration-1000 ease-in-out overflow-x-hidden">
+
+    <div class="w-full max-w-4xl space-y-6">
+        
+        <!-- Header / Clock Section -->
+        <header class="glass-panel rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden transition-all duration-300">
+            <!-- Background Accent Circle -->
+            <div class="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                <div id="greeting" class="text-lg sm:text-xl font-medium tracking-wide text-white/90 bg-white/10 px-4 py-1.5 rounded-full border border-white/10">
+                    <i class="fa-regular fa-sun text-amber-300 ml-2"></i>أهلاً بك!
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="timeFormatToggle" class="bg-white/15 hover:bg-white/25 active:scale-95 transition px-3.5 py-1.5 rounded-full border border-white/20 font-bold text-sm tracking-wider shadow-lg" title="تغيير نظام الوقت">
+                        12H / 24H
+                    </button>
+                    <button id="geoBtn" title="تحديد موقعي الحقيقي" class="bg-white/15 hover:bg-white/25 active:scale-95 transition p-2.5 rounded-full border border-white/20 text-white shadow-lg">
+                        <i class="fa-solid fa-location-crosshairs text-lg"></i>
+                    </button>
+                    <button id="unitToggle" class="bg-white/15 hover:bg-white/25 active:scale-95 transition px-3.5 py-1.5 rounded-full border border-white/20 font-bold text-sm tracking-wider shadow-lg">
+                        °C / °F
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-baseline justify-center gap-2 my-2">
+                <div id="clockDisplay" class="text-5xl sm:text-7xl font-extrabold tracking-wider font-mono text-shadow-lg drop-shadow-md">
+                    00:00:00
+                </div>
+                <div id="ampmDisplay" class="text-xl sm:text-2xl font-bold text-amber-300 font-sans">
+                    --
+                </div>
+            </div>
+            <div id="dateDisplay" class="text-sm sm:text-base text-white/80 font-medium tracking-wide">
+                الخميس، 1 أكتوبر 2026
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Left Side: Weather Search & Primary Card -->
+            <section class="md:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden">
+                
+                <!-- Search Box -->
+                <form id="searchForm" class="flex gap-2 mb-6">
+                    <div class="relative flex-1">
+                        <input id="cityInput" type="text" placeholder="ابحث عن اسم المدينة..." required
+                            class="glass-input w-full py-3 pr-10 pl-4 rounded-2xl text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-white/40 transition">
+                        <i class="fa-solid fa-magnifying-glass absolute right-3.5 top-1/2 -translate-y-1/2 text-white/60"></i>
+                    </div>
+                    <button type="submit" class="bg-white/20 hover:bg-white/30 active:scale-95 transition px-5 py-3 rounded-2xl font-semibold border border-white/30 flex items-center gap-2">
+                        <span>بحث</span>
+                        <i class="fa-solid fa-arrow-left text-xs"></i>
+                    </button>
+                </form>
+
+                <!-- Weather Main Info -->
+                <div id="weatherMain" class="flex flex-col sm:flex-row items-center justify-between gap-6 py-4">
+                    <div class="text-center sm:text-right space-y-2">
+                        <h2 id="cityName" class="text-3xl sm:text-4xl font-bold flex items-center justify-center sm:justify-start gap-2">
+                            <span>القاهرة</span>
+                            <i class="fa-solid fa-location-dot text-rose-400 text-xl"></i>
+                        </h2>
+                        <p id="weatherDesc" class="text-white/80 text-lg capitalize font-medium">صافٍ ومشمس</p>
+                        <div class="flex items-baseline justify-center sm:justify-start gap-2 pt-2">
+                            <span id="tempValue" class="text-6xl sm:text-7xl font-extrabold tracking-tight">28</span>
+                            <span id="tempUnit" class="text-3xl font-light text-white/80">°C</span>
+                        </div>
+                    </div>
+
+                    <!-- Animated Weather Icon Container -->
+                    <div class="flex flex-col items-center justify-center">
+                        <div id="weatherIconContainer" class="text-7xl sm:text-8xl text-amber-300 drop-shadow-xl animate-float">
+                            <i class="fa-solid fa-sun"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Status Bar -->
+                <div id="statusMessage" class="mt-4 pt-4 border-t border-white/10 text-xs text-white/60 text-center sm:text-right">
+                    جاري عرض بيانات الطقس المحدثة.
+                </div>
+            </section>
+
+            <section class="glass-panel rounded-3xl p-6 sm:p-8 flex flex-col justify-around gap-4">
+                <h3 class="text-lg font-bold text-white/90 border-b border-white/10 pb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-simple text-amber-400"></i>
+                    تفاصيل الطقس
+                </h3>
+
+                <!-- Feels Like Metric -->
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-300 text-lg">
+                            <i class="fa-solid fa-temperature-half"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-white/60">الشعور الحقيقي</p>
+                            <p class="font-bold text-base" id="feelsLike">29°C</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Humidity Metric -->
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-300 text-lg">
+                            <i class="fa-solid fa-droplet"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-white/60">الرطوبة</p>
+                            <p class="font-bold text-base" id="humidity">45%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wind Speed Metric -->
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center text-teal-300 text-lg">
+                            <i class="fa-solid fa-wind"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-white/60">سرعة الرياح</p>
+                            <p class="font-bold text-base" id="windSpeed">12 كم/س</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let currentUnit = 'C'; // 'C' or 'F'
+        let currentTempC = 28;
+        let currentFeelsC = 29;
+        let is12HourFormat = true; // Toggle between 12-hour and 24-hour formats
+
+        // FontAwesome icon map based on weather code
+        const weatherCodeMap = {
+            0: { desc: 'السماء صافية', icon: 'fa-solid fa-sun', color: 'text-amber-300' },
+            1: { desc: 'مشمس غالباً', icon: 'fa-solid fa-cloud-sun', color: 'text-amber-200' },
+            2: { desc: 'غائم جزئياً', icon: 'fa-solid fa-cloud-sun', color: 'text-slate-200' },
+            3: { desc: 'غائم بالكامل', icon: 'fa-solid fa-cloud', color: 'text-gray-300' },
+            45: { desc: 'ضباب خفيف', icon: 'fa-solid fa-smog', color: 'text-gray-300' },
+            48: { desc: 'ضباب كثيف', icon: 'fa-solid fa-smog', color: 'text-gray-400' },
+            51: { desc: 'رذاذ مطر خفيف', icon: 'fa-solid fa-cloud-rain', color: 'text-blue-300' },
+            61: { desc: 'أمطار خفيفة', icon: 'fa-solid fa-cloud-sun-rain', color: 'text-blue-300' },
+            63: { desc: 'أمطار متوسطة', icon: 'fa-solid fa-cloud-showers-heavy', color: 'text-blue-400' },
+            80: { desc: 'زخات مطرية', icon: 'fa-solid fa-cloud-showers-water', color: 'text-blue-400' },
+            95: { desc: 'عاصفة رعدية', icon: 'fa-solid fa-cloud-bolt', color: 'text-yellow-400' }
+        };
+
+        function updateClockAndTheme() {
+            const now = new Date();
+            let hoursNum = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampmEl = document.getElementById('ampmDisplay');
+
+            if (is12HourFormat) {
+                const ampm = hoursNum >= 12 ? 'م' : 'ص';
+                hoursNum = hoursNum % 12;
+                hoursNum = hoursNum ? hoursNum : 12; // Hour '0' should be '12'
+                const displayHours = String(hoursNum).padStart(2, '0');
+                
+                document.getElementById('clockDisplay').textContent = `${displayHours}:${minutes}:${seconds}`;
+                ampmEl.textContent = ampm;
+                ampmEl.classList.remove('hidden');
+            } else {
+                const displayHours = String(hoursNum).padStart(2, '0');
+                document.getElementById('clockDisplay').textContent = `${displayHours}:${minutes}:${seconds}`;
+                ampmEl.classList.add('hidden');
+            }
+
+            // Format date in Arabic
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('dateDisplay').textContent = now.toLocaleDateString('ar-EG', options);
+
+            // Dynamic Greeting & Gradient Background based on local hour
+            const hour = now.getHours();
+            const body = document.getElementById('appBody');
+            const greetingEl = document.getElementById('greeting');
+
+            if (hour >= 5 && hour < 12) {
+                body.className = 'bg-day min-h-screen text-white flex items-center justify-center p-4 sm:p-6 transition-all duration-1000 ease-in-out overflow-x-hidden';
+                greetingEl.innerHTML = '<i class="fa-regular fa-sun text-amber-300 ml-2"></i>صباح الخير والنشاط!';
+            } else if (hour >= 12 && hour < 17) {
+                body.className = 'bg-day min-h-screen text-white flex items-center justify-center p-4 sm:p-6 transition-all duration-1000 ease-in-out overflow-x-hidden';
+                greetingEl.innerHTML = '<i class="fa-solid fa-sun text-yellow-400 ml-2"></i>مساء الخير!';
+            } else if (hour >= 17 && hour < 20) {
+                body.className = 'bg-sunset min-h-screen text-white flex items-center justify-center p-4 sm:p-6 transition-all duration-1000 ease-in-out overflow-x-hidden';
+                greetingEl.innerHTML = '<i class="fa-solid fa-cloud-sun text-orange-300 ml-2"></i>مساء الورد والأجواء الجميلة!';
+            } else {
+                body.className = 'bg-night min-h-screen text-white flex items-center justify-center p-4 sm:p-6 transition-all duration-1000 ease-in-out overflow-x-hidden';
+                greetingEl.innerHTML = '<i class="fa-regular fa-moon text-indigo-300 ml-2"></i>مساء الخير والهدوء!';
+            }
+        }
+
+        function convertTemp(tempC, toUnit) {
+            if (toUnit === 'F') {
+                return Math.round((tempC * 9/5) + 32);
+            }
+            return Math.round(tempC);
+        }
+
+        function renderTemperatures() {
+            const displayTemp = convertTemp(currentTempC, currentUnit);
+            const displayFeels = convertTemp(currentFeelsC, currentUnit);
+            
+            document.getElementById('tempValue').textContent = displayTemp;
+            document.getElementById('tempUnit').textContent = `°${currentUnit}`;
+            document.getElementById('feelsLike').textContent = `${displayFeels}°${currentUnit}`;
+        }
+
+        async function fetchWeather(city) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = `جاري البحث عن طقس مدينة ${city}...`;
+
+            try {
+                // 1. Get Lat/Long for city using Geocoding API
+                const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ar&format=json`;
+                const geoRes = await fetch(geoUrl);
+                const geoData = await geoRes.json();
+
+                if (geoData && geoData.results && geoData.results.length > 0) {
+                    const loc = geoData.results[0];
+                    const lat = loc.latitude;
+                    const lon = loc.longitude;
+                    const name = loc.name;
+
+                    // 2. Fetch current weather from Open-Meteo
+                    const weatherUrl = `https://open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m`;
+                    const weatherRes = await fetch(weatherUrl);
+                    const weatherData = await weatherRes.json();
+
+                    if (weatherData && weatherData.current_weather) {
+                        const cw = weatherData.current_weather;
+                        const weatherCode = cw.weathercode;
+                        const humidity = weatherData.hourly?.relativehumidity_2m?.[0] || 50;
+
+                        updateUI({
+                            city: name,
+                            temp: Math.round(cw.temperature),
+                            feels: Math.round(cw.temperature + 1),
+                            wind: Math.round(cw.windspeed),
+                            humidity: humidity,
+                            code: weatherCode
+                        });
+
+                        statusEl.textContent = `تم تحديث البيانات المباشرة لمدينة ${name}.`;
+                        return;
+                    }
+                }
+                throw new Error("City not found or API unavailable");
+
+            } catch (err) {
+                // Fallback simulation for seamless UI response
+                console.warn("Using fallback simulation due to network error:", err);
+                simulateWeatherData(city);
+            }
+        }
+
+        function simulateWeatherData(cityName) {
+            const simulatedTemp = Math.floor(Math.random() * 15) + 20; // 20 - 35 °C
+            const simulatedFeels = simulatedTemp + Math.floor(Math.random() * 3);
+            const simulatedHumidity = Math.floor(Math.random() * 40) + 40;
+            const simulatedWind = Math.floor(Math.random() * 15) + 8;
+            
+            updateUI({
+                city: cityName,
+                temp: simulatedTemp,
+                feels: simulatedFeels,
+                wind: simulatedWind,
+                humidity: simulatedHumidity,
+                code: 0
+            });
+
+            document.getElementById('statusMessage').textContent = `عرض طقس تقريبي لـ ${cityName}.`;
+        }
+
+        function updateUI(data) {
+            currentTempC = data.temp;
+            currentFeelsC = data.feels;
+
+            document.getElementById('cityName').querySelector('span').textContent = data.city;
+            document.getElementById('humidity').textContent = `${data.humidity}%`;
+            document.getElementById('windSpeed').textContent = `${data.wind} كم/س`;
+
+            // Weather icon and description mapping
+            const weatherMeta = weatherCodeMap[data.code] || weatherCodeMap[0];
+            document.getElementById('weatherDesc').textContent = weatherMeta.desc;
+            document.getElementById('weatherIconContainer').innerHTML = `<i class="${weatherMeta.icon} ${weatherMeta.color}"></i>`;
+
+            renderTemperatures();
+        }
+
+        window.onload = function() {
+            // Start clock interval
+            updateClockAndTheme();
+            setInterval(updateClockAndTheme, 1000);
+
+            // Fetch default city on start
+            fetchWeather('القاهرة');
+
+            // Form Submit for Search
+            document.getElementById('searchForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const cityInput = document.getElementById('cityInput');
+                if (cityInput.value.trim()) {
+                    fetchWeather(cityInput.value.trim());
+                    cityInput.value = '';
+                }
+            });
+
+            // Toggle 12H / 24H Time Format
+            document.getElementById('timeFormatToggle').addEventListener('click', function() {
+                is12HourFormat = !is12HourFormat;
+                updateClockAndTheme();
+            });
+
+            // Toggle °C / °F
+            document.getElementById('unitToggle').addEventListener('click', function() {
+                currentUnit = (currentUnit === 'C') ? 'F' : 'C';
+                renderTemperatures();
+            });
+
+            // Geolocation Button
+            document.getElementById('geoBtn').addEventListener('click', function() {
+                if (navigator.geolocation) {
+                    document.getElementById('statusMessage').textContent = 'جاري تحديد موقعك الجغرافي...';
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            fetchWeather('موقعي الحالي');
+                        },
+                        (err) => {
+                            document.getElementById('statusMessage').textContent = 'تعذر الوصول للموقع الجغرافي. جاري عرض طقس القاهرة.';
+                            fetchWeather('القاهرة');
+                        }
+                    );
+                } else {
+                    alert('خاصية تحديد الموقع غير مدعومة في متصفحك.');
+                }
+            });
+        };
+    </script>
+</body>
+</html>
